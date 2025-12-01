@@ -41,11 +41,8 @@ export default function AdminDashboard() {
   const [showShippingConfig, setShowShippingConfig] = useState(false);
 
   useEffect(() => {
-    if (authLoading) {
-      return;
-    }
     loadOrders();
-  }, [isAdmin, authLoading, navigate]);
+  }, []);
 
   const loadOrders = async () => {
     try {
