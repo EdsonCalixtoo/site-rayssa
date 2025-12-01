@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { X, LogOut, LayoutDashboard, ShoppingBag, Users, TrendingUp, Truck, Edit2, CreditCard, QrCode, DollarSign, Calendar, Settings, Package, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
 import ProductManagement from '../components/ProductManagement';
 import ShippingConfiguration from '../components/ShippingConfiguration';
 
@@ -34,8 +32,6 @@ type OrderWithDetails = {
 };
 
 export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const { logout, isAdmin, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<OrderWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -45,10 +41,6 @@ export default function AdminDashboard() {
   const [showShippingConfig, setShowShippingConfig] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !isAdmin) {
-      navigate('/');
-      return;
-    }
     if (authLoading) {
       return;
     }
@@ -137,9 +129,9 @@ export default function AdminDashboard() {
       ? orders
       : orders.filter((order) => order.status === filter);
 
-  const handleLogout = async () => {
-    await logout();
-    navigate('/');
+  const handleLogout = () => {
+    localStorage.removeItem('adminToken');
+    window.location.reload();
   };
 
   const totalRevenue = orders
