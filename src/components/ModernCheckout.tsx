@@ -1,6 +1,7 @@
-import { X, CreditCard, QrCode, Truck, Lock, Shield, Check } from 'lucide-react';
+import { X, CreditCard, QrCode, Truck, Lock, Shield, Check, Edit2 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
+import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 
 type ModernCheckoutProps = {
@@ -18,6 +19,7 @@ interface ShippingCarrier {
 
 export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutProps) {
   const { cart, totalPrice, clearCart } = useCart();
+  const { isLoggedIn } = useAuth();
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix');
@@ -26,6 +28,8 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
   const [calculatingShipping, setCalculatingShipping] = useState(false);
   const [carriers, setCarriers] = useState<ShippingCarrier[]>([]);
   const [selectedCarrier, setSelectedCarrier] = useState<ShippingCarrier | null>(null);
+  const [editingAddress, setEditingAddress] = useState(false);
+  const [userEmail, setUserEmail] = useState('');
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -41,6 +45,45 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
     cardExpiry: '',
     cardCVV: '',
   });
+
+  // Carregar dados do usuário logado
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user?.email && isLoggedIn) {
+          setUserEmail(session.user.email);
+          setFormData(prev => ({ ...prev, email: session.user.email }));
+          
+          // Carregar dados do cliente
+          const { data: customer } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .single();
+          
+          if (customer) {
+            setFormData(prev => ({
+              ...prev,
+              name: customer.name || '',
+              phone: customer.phone || '',
+              zip_code: customer.zip_code || '',
+              address: customer.address || '',
+              number: customer.number || '',
+              complement: customer.complement || '',
+              city: customer.city || '',
+              state: customer.state || '',
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading user data:', error);
+      }
+    };
+
+    loadUserData();
+  }, [isLoggedIn]);
 
   const calculateShipping = async (zipCode: string) => {
     if (zipCode.replace(/\D/g, '').length !== 8) return;
@@ -455,6 +498,128 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
 
               {currentStep === 2 && (
                 <div className="space-y-5">
+                  {/* Resumo do Endereço */}
+                  <div className="bg-gradient-to-br from-teal-50 to-cyan-50 p-6 rounded-2xl border-2 border-teal-200">
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="font-bold text-gray-900 text-lg flex items-center gap-2">
+                        <Truck className="w-5 h-5 text-teal-600" />
+                        Endereço de Entrega
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => setEditingAddress(!editingAddress)}
+                        className="flex items-center gap-2 text-teal-600 hover:text-teal-700 font-semibold transition-colors"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                        {editingAddress ? 'Concluir' : 'Editar'}
+                      </button>
+                    </div>
+
+                    {editingAddress ? (
+                      <div className="space-y-4">
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Nome Completo</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.name}
+                              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Telefone</label>
+                            <input
+                              type="tel"
+                              required
+                              value={formData.phone}
+                              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-3 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">CEP</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.zip_code}
+                              onChange={(e) => handleZipCodeChange(e.target.value)}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                              placeholder="00000-000"
+                              maxLength={9}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Cidade</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.city}
+                              onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Estado</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.state}
+                              onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                              maxLength={2}
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">Endereço</label>
+                          <input
+                            type="text"
+                            required
+                            value={formData.address}
+                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                          />
+                        </div>
+
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Número</label>
+                            <input
+                              type="text"
+                              required
+                              value={formData.number}
+                              onChange={(e) => setFormData({ ...formData, number: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-2">Complemento</label>
+                            <input
+                              type="text"
+                              value={formData.complement}
+                              onChange={(e) => setFormData({ ...formData, complement: e.target.value })}
+                              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 text-gray-700">
+                        <p><strong>Nome:</strong> {formData.name || 'Não informado'}</p>
+                        <p><strong>Telefone:</strong> {formData.phone || 'Não informado'}</p>
+                        <p><strong>Endereço:</strong> {formData.address || 'Não informado'}, {formData.number || 'S/N'}</p>
+                        <p><strong>Complemento:</strong> {formData.complement || 'Não informado'}</p>
+                        <p><strong>CEP:</strong> {formData.zip_code || 'Não informado'} - {formData.city || 'Não informado'}, {formData.state || 'UF'}</p>
+                      </div>
+                    )}
+                  </div>
+
                   <h3 className="text-2xl font-bold text-gray-900">Forma de Pagamento</h3>
 
                   <div className="grid grid-cols-2 gap-4">
