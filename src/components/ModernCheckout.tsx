@@ -64,9 +64,9 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
             .single();
           
           if (customer) {
-            setFormData(prev => ({
-              ...prev,
+            const newFormData = {
               name: customer.name || '',
+              email: session.user.email,
               phone: customer.phone || '',
               zip_code: customer.zip_code || '',
               address: customer.address || '',
@@ -74,7 +74,17 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
               complement: customer.complement || '',
               city: customer.city || '',
               state: customer.state || '',
-            }));
+              cardNumber: '',
+              cardName: '',
+              cardExpiry: '',
+              cardCVV: '',
+            };
+            setFormData(newFormData);
+            
+            // Calcular frete automaticamente se tiver CEP
+            if (customer.zip_code) {
+              await calculateShipping(customer.zip_code);
+            }
           }
         }
       } catch (error) {
@@ -488,7 +498,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                   <button
                     type="button"
                     onClick={() => setCurrentStep(2)}
-                    disabled={!formData.zip_code || calculatingShipping || !selectedCarrier}
+                    disabled={!formData.name || !formData.email || !formData.phone || !formData.address || !formData.number || !formData.city || !formData.state || !formData.zip_code}
                     className="w-full bg-gradient-to-r from-teal-500 to-teal-600 text-white py-4 rounded-xl hover:from-teal-600 hover:to-teal-700 transition-all font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                   >
                     Continuar para Pagamento
