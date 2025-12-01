@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { CartProvider } from './contexts/CartContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { useCart } from './contexts/CartContext';
@@ -12,24 +12,21 @@ import ProductDetail from './components/ProductDetail';
 import ModernCart from './components/ModernCart';
 import ModernCheckout from './components/ModernCheckout';
 import ModernClientArea from './components/ModernClientArea';
-import AdminLogin from './components/AdminLogin';
 import About from './components/About';
 import Testimonials from './components/Testimonials';
-import AdminDashboard from './pages/AdminDashboard';
 import ProductsPage from './pages/ProductsPage';
 import { Product } from './lib/supabase';
-import { ShoppingCart, User, Shield } from 'lucide-react';
+import { ShoppingCart, User } from 'lucide-react';
 
-type View = 'home' | 'cart' | 'checkout' | 'clientArea' | 'adminLogin';
+type View = 'home' | 'cart' | 'checkout' | 'clientArea';
 
 function AppContent() {
   const navigate = useNavigate();
   const [view, setView] = useState<View>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [showAdminLogin, setShowAdminLogin] = useState(false);
   const { totalItems } = useCart();
-  const { isAdmin } = useAuth();
+  const { isLoggedIn } = useAuth();
 
   const handleProductClick = (product: Product) => {
     setSelectedProduct(product);
@@ -39,19 +36,6 @@ function AppContent() {
     setView('home');
     setShowSuccess(true);
     setTimeout(() => setShowSuccess(false), 5000);
-  };
-
-  const handleDashboardClick = () => {
-    if (isAdmin) {
-      navigate('/admin');
-    } else {
-      setShowAdminLogin(true);
-    }
-  };
-
-  const handleAdminLoginSuccess = () => {
-    setShowAdminLogin(false);
-    navigate('/admin');
   };
 
   const handleClientAreaClick = () => {
@@ -73,23 +57,13 @@ function AppContent() {
           )}
         </button>
 
-        {isAdmin ? (
-          <button
-            onClick={handleDashboardClick}
-            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-teal-600 to-teal-700 text-white hover:from-teal-700 hover:to-teal-800 transition-all rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold border-2 border-teal-500"
-          >
-            <Shield className="w-5 h-5" />
-            <span>Admin</span>
-          </button>
-        ) : (
-          <button
-            onClick={handleClientAreaClick}
-            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 transition-all rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
-          >
-            <User className="w-5 h-5" />
-            <span>Área do Cliente</span>
-          </button>
-        )}
+        <button
+          onClick={handleClientAreaClick}
+          className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-teal-500 to-teal-600 text-white hover:from-teal-600 hover:to-teal-700 transition-all rounded-full shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
+        >
+          <User className="w-5 h-5" />
+          <span>{isLoggedIn ? 'Minha Conta' : 'Área do Cliente'}</span>
+        </button>
       </div>
 
       {showSuccess && (
@@ -130,13 +104,6 @@ function AppContent() {
         <ModernClientArea onClose={() => setView('home')} />
       )}
 
-      {showAdminLogin && (
-        <AdminLogin
-          onClose={() => setShowAdminLogin(false)}
-          onSuccess={handleAdminLoginSuccess}
-        />
-      )}
-
       <footer className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8">
@@ -169,7 +136,6 @@ function App() {
           <Routes>
             <Route path="/" element={<AppContent />} />
             <Route path="/produtos" element={<ProductsPage />} />
-            <Route path="/admin" element={<AdminDashboard />} />
           </Routes>
         </BrowserRouter>
       </CartProvider>

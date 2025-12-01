@@ -1,6 +1,7 @@
 import { X } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 type ClientRegisterProps = {
   onClose: () => void;
@@ -9,6 +10,7 @@ type ClientRegisterProps = {
 };
 
 export default function ClientRegister({ onClose, onSuccess, onLoginClick }: ClientRegisterProps) {
+  const { login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
@@ -42,6 +44,7 @@ export default function ClientRegister({ onClose, onSuccess, onLoginClick }: Cli
     setLoading(true);
 
     try {
+      // 1. Criar a conta
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -49,6 +52,7 @@ export default function ClientRegister({ onClose, onSuccess, onLoginClick }: Cli
 
       if (authError) throw authError;
 
+      // 2. Salvar dados do cliente
       if (authData.user) {
         const { error: customerError } = await supabase
           .from('customers')
@@ -66,6 +70,9 @@ export default function ClientRegister({ onClose, onSuccess, onLoginClick }: Cli
           });
 
         if (customerError) throw customerError;
+
+        // 3. Fazer login automaticamente
+        await login(formData.email, formData.password);
       }
 
       onSuccess();

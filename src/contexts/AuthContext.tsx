@@ -2,9 +2,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { supabase } from '../lib/supabase';
 
 type AuthContextType = {
-  isAdmin: boolean;
+  isLoggedIn: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
 };
@@ -12,21 +11,19 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsAdmin(!!session);
+      setIsLoggedIn(!!session);
       setLoading(false);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      (async () => {
-        setIsAdmin(!!session);
-      })();
+      setIsLoggedIn(!!session);
     });
 
     return () => subscription.unsubscribe();
@@ -38,25 +35,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
     });
     if (error) throw error;
-    setIsAdmin(true);
-  };
-
-  const register = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-    if (error) throw error;
-    setIsAdmin(true);
+    setIsLoggedIn(true);
   };
 
   const logout = async () => {
     await supabase.auth.signOut();
-    setIsAdmin(false);
+    setIsLoggedIn(false);
   };
 
   return (
-    <AuthContext.Provider value={{ isAdmin, login, register, logout, loading }}>
+    <AuthContext.Provider value={{ isLoggedIn, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );
