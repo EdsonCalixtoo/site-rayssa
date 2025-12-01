@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Package, X, Check } from 'lucide-react';
+import { Plus, Edit2, Trash2, Package, X, Check, Upload } from 'lucide-react';
 import { supabase, Product } from '../lib/supabase';
+import ImageUpload from './ImageUpload';
 
 export default function ProductManagement() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showImageUpload, setShowImageUpload] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [error, setError] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -150,10 +153,20 @@ export default function ProductManagement() {
     setShowForm(true);
   };
 
+  const handleImagesUpload = (urls: string[]) => {
+    setUploadedImages(urls);
+    setFormData(prev => ({
+      ...prev,
+      image_url: urls[0] || '', // Primeira imagem como principal
+    }));
+    setShowImageUpload(false);
+  };
+
   const handleCloseForm = () => {
     setShowForm(false);
     setEditingProduct(null);
     setError('');
+    setUploadedImages([]);
     setFormData({
       name: '',
       description: '',
@@ -445,10 +458,46 @@ export default function ProductManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">URL da Imagem</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Imagens do Produto</label>
+                <button
+                  type="button"
+                  onClick={() => setShowImageUpload(true)}
+                  className="w-full px-4 py-3 border-2 border-dashed border-teal-400 rounded-xl hover:border-teal-600 hover:bg-teal-50 transition-colors flex items-center justify-center gap-2 text-teal-700 font-semibold mb-3"
+                >
+                  <Upload className="w-5 h-5" />
+                  Fazer Upload de Imagens
+                </button>
+
+                {uploadedImages.length > 0 && (
+                  <div className="bg-teal-50 p-4 rounded-xl border-2 border-teal-200 mb-3">
+                    <p className="text-sm font-semibold text-teal-900 mb-3">
+                      {uploadedImages.length} imagem(ns) selecionada(s)
+                    </p>
+                    <div className="grid grid-cols-4 gap-2">
+                      {uploadedImages.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <img
+                            src={url}
+                            alt={`Produto ${index + 1}`}
+                            className="w-full h-20 object-cover rounded-lg border-2 border-teal-300"
+                          />
+                          <div className="absolute top-1 left-1 bg-teal-600 text-white text-xs rounded px-2 py-1">
+                            #{index + 1}
+                          </div>
+                          {index === 0 && (
+                            <div className="absolute top-1 right-1 bg-yellow-500 text-white text-xs rounded px-2 py-1">
+                              Principal
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <label className="block text-sm font-semibold text-gray-700 mb-2">ou URL da Imagem</label>
                 <input
                   type="url"
-                  required
                   value={formData.image_url}
                   onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
                   className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-teal-500 transition-colors"
@@ -542,6 +591,13 @@ export default function ProductManagement() {
             </form>
           </div>
         </div>
+      )}
+
+      {showImageUpload && (
+        <ImageUpload
+          onImagesUpload={handleImagesUpload}
+          onClose={() => setShowImageUpload(false)}
+        />
       )}
     </div>
   );
