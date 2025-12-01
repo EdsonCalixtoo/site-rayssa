@@ -21,7 +21,6 @@ import { ShoppingCart, User } from 'lucide-react';
 type View = 'home' | 'cart' | 'checkout' | 'clientArea';
 
 function AppContent() {
-  const navigate = useNavigate();
   const [view, setView] = useState<View>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
