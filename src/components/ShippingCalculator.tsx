@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Truck, AlertCircle, Loader } from 'lucide-react';
+import { Truck, AlertCircle, Loader, Check } from 'lucide-react';
 import { calculateShipping, ShippingQuote, ShippingData } from '../lib/melhorenvio';
 import { Product } from '../lib/supabase';
 

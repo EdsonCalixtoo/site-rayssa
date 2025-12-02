@@ -3,7 +3,6 @@
 
 const MELHOR_ENVIO_API = 'https://api.melhorenvio.com.br';
 const TOKEN = import.meta.env.VITE_MELHOR_ENVIO_TOKEN || '';
-const CONTRACT_ID = import.meta.env.VITE_MELHOR_ENVIO_CONTRACT || '7607';
 
 // Tipos para a API do Melhor Envio
 export type ShippingService = 'sedex' | 'pac' | 'jadlog-conventional' | 'jadlog-cargo';
@@ -78,13 +77,28 @@ export async function calculateShipping(shippingData: ShippingData): Promise<Shi
     console.log('Frete calculado:', data);
 
     // Formatar resposta para o padrão esperado
-    return data.map((quote: any) => ({
+    interface QuoteResponse {
+      id: string;
+      name: string;
+      price: string | number;
+      deadline: string | number;
+      weight?: number;
+      insurance_value?: string | number;
+      includes?: string[];
+      logo?: string;
+    }
+    
+    return (data as QuoteResponse[]).map((quote) => ({
       id: quote.id,
       name: quote.name,
-      price: parseFloat(quote.price) || 0,
-      deadline: parseInt(quote.deadline) || 0,
+      price: typeof quote.price === 'string' ? parseFloat(quote.price) : quote.price || 0,
+      deadline: typeof quote.deadline === 'string' ? parseInt(quote.deadline) : quote.deadline || 0,
       weight: quote.weight,
-      insurance_value: parseFloat(quote.insurance_value) || 0,
+      insurance_value: quote.insurance_value 
+        ? typeof quote.insurance_value === 'string' 
+          ? parseFloat(quote.insurance_value) 
+          : quote.insurance_value 
+        : 0,
       includes: quote.includes || [],
       logo: quote.logo || '',
     }));
