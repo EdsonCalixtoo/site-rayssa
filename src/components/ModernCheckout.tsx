@@ -133,8 +133,8 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         length: item.product.length,
       })));
 
-      // Usar a API do Melhor Envio diretamente
-      const { calculateShipping: calculateMelhorEnvio } = await import('../lib/melhorenvio');
+      // Chamar Edge Function do Supabase ao invés da API direta
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       
       console.log('📍 Endereço de entrega:', {
         zipcode: zipCode.replace(/\D/g, ''),
@@ -143,7 +143,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         address: formData.address,
       });
 
-      const quotes = await calculateMelhorEnvio({
+      const requestBody = {
         to: {
           zipcode: zipCode.replace(/\D/g, ''),
           state: formData.state || '',
@@ -162,14 +162,33 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
           insurance_value: item.product.price * item.quantity,
           description: item.product.name,
         })),
+      };
+
+      console.log('📡 Enviando para Edge Function:', requestBody);
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/calculate-shipping`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
       });
 
-      console.log('📋 Quotes recebidas:', quotes);
+      console.log('📡 Response status:', response.status);
 
-      if (quotes && quotes.length > 0) {
-        const carriers: ShippingCarrier[] = quotes.map((q) => ({
-          ...q,
-          code: q.id,
+      const data = await response.json();
+      console.log('📋 Resposta da Edge Function:', data);
+
+      if (data.carriers && data.carriers.length > 0) {
+        const carriers: ShippingCarrier[] = data.carriers.map((q: any) => ({
+          id: q.id || q.code,
+          name: q.name,
+          code: q.code || q.id,
+          price: typeof q.price === 'string' ? parseFloat(q.price) : q.price,
+          deadline: typeof q.deadline === 'string' ? parseInt(q.deadline) : q.deadline,
+          insurance_value: q.insurance_value || 0,
+          includes: q.includes || [],
+          logo: q.logo || '',
         }));
         
         console.log('✅ Carriers para exibir:', carriers);
@@ -180,7 +199,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         
         console.log('✅ Frete mais barato selecionado:', cheapest);
       } else {
-        console.warn('⚠️ Nenhuma opção de frete retornada pela API - usando fallback');
+        console.warn('⚠️ Nenhuma opção de frete retornada - usando fallback');
         // Fallback se nenhuma opção disponível
         const defaultCarrier: ShippingCarrier = {
           id: 'default',

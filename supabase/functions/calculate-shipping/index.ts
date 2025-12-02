@@ -1,5 +1,4 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "npm:@supabase/supabase-js@2.57.4";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -8,19 +7,24 @@ const corsHeaders = {
 };
 
 interface ShippingRequest {
-  zipCode: string;
-  weight: number;
-  height: number;
-  width: number;
-  length: number;
-}
-
-interface CarrierOption {
-  id: number;
-  name: string;
-  code: string;
-  price: number;
-  deadline: number;
+  to: {
+    zipcode: string;
+    state: string;
+    city: string;
+    address: string;
+    number: string;
+    complement?: string;
+  };
+  products: Array<{
+    id: string;
+    width: number;
+    height: number;
+    length: number;
+    weight: number;
+    quantity: number;
+    insurance_value: number;
+    description: string;
+  }>;
 }
 
 Deno.serve(async (req: Request) => {
@@ -33,42 +37,17 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body: ShippingRequest = await req.json();
-    const { zipCode, weight, height, width, length } = body;
+    
+    console.log('📦 Recebido pedido de cálculo:', JSON.stringify(body, null, 2));
 
-    if (!zipCode || !weight || !height || !width || !length) {
+    // Token do Melhor Envio (pegue as variáveis de ambiente)
+    const token = Deno.env.get('MELHOR_ENVIO_TOKEN');
+    
+    if (!token) {
+      console.error('❌ Token MELHOR_ENVIO_TOKEN não configurado');
       return new Response(
         JSON.stringify({
-          error: "Missing required fields",
-        }),
-        {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL");
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-
-    if (!supabaseUrl || !supabaseServiceKey) {
-      throw new Error("Missing Supabase configuration");
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: config, error: configError } = await supabase
-      .from("shipping_config")
-      .select("*")
-      .single();
-
-    if (configError || !config) {
-      throw new Error("Shipping configuration not found");
-    }
-
-    if (!config.token || !config.client_id) {
-      return new Response(
-        JSON.stringify({
-          error: "Shipping service not configured",
+          error: 'Token não configurado no servidor',
           carriers: [],
         }),
         {
@@ -78,79 +57,76 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const baseUrl = config.is_production
-      ? "https://api.melhorenvio.com.br"
-      : "https://sandbox.melhorenvio.com.br";
+    console.log('🔑 Token configurado:', token ? '✓' : '✗');
 
-    const shippingData = {
-      from: {
-        postal_code: "01310-100",
-      },
-      to: {
-        postal_code: zipCode,
-      },
-      products: [
-        {
-          id: 1,
-          width: width,
-          height: height,
-          length: length,
-          weight: weight,
-          quantity: 1,
-        },
-      ],
-    };
+    // Chamar API do Melhor Envio (v3)
+    const melhorEnvioUrl = 'https://api.melhorenvio.com.br/shipment/calculate';
+    
+    console.log('📍 Enviando para:', melhorEnvioUrl);
+    console.log('📦 Dados:', JSON.stringify(body, null, 2));
 
-    const response = await fetch(`${baseUrl}/api/v2/me/shipment/calculate`, {
-      method: "POST",
+    const response = await fetch(melhorEnvioUrl, {
+      method: 'POST',
       headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${config.token}`,
-        "User-Agent": "LuxJewels-Ecommerce/1.0",
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'User-Agent': 'RT-PRATAS/1.0',
       },
-      body: JSON.stringify(shippingData),
+      body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error("Melhor Envio API error:", errorData);
-      throw new Error(`Melhor Envio API error: ${response.status}`);
-    }
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', JSON.stringify(Object.fromEntries(response.headers), null, 2));
 
     const data = await response.json();
+    
+    console.log('✅ Resposta da API:', JSON.stringify(data, null, 2));
 
-    const enabledCarriers = config.enabled_carriers || [
-      "jadlog",
-      "correios",
-      "azul_cargo",
-    ];
-    const filteredCarriers = (data || [])
-      .filter((carrier: CarrierOption) =>
-        enabledCarriers.includes(carrier.code?.toLowerCase() || "")
-      )
-      .map((carrier: CarrierOption) => ({
-        id: carrier.id,
-        name: carrier.name,
-        code: carrier.code,
-        price: Math.round(carrier.price * 100) / 100,
-        deadline: carrier.deadline,
-      }))
-      .sort((a: CarrierOption, b: CarrierOption) => a.price - b.price);
+    if (!response.ok) {
+      console.error('❌ Erro da API:', data);
+      return new Response(
+        JSON.stringify({
+          error: data,
+          carriers: [],
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Formatar resposta
+    const carriers = Array.isArray(data) 
+      ? data.map((item: any) => ({
+          id: item.id,
+          name: item.name,
+          code: item.id,
+          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
+          deadline: typeof item.deadline === 'string' ? parseInt(item.deadline) : item.deadline,
+          logo: item.logo || '',
+          includes: item.includes || [],
+        }))
+      : [];
+
+    console.log('✅ Carriers formatados:', carriers);
 
     return new Response(
       JSON.stringify({
         success: true,
-        carriers: filteredCarriers,
+        carriers: carriers,
       }),
       {
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   } catch (error) {
-    console.error("Error calculating shipping:", error);
+    console.error('❌ Erro ao calcular frete:', error);
     return new Response(
       JSON.stringify({
-        error: error instanceof Error ? error.message : "Unknown error",
+        error: error instanceof Error ? error.message : 'Unknown error',
         carriers: [],
       }),
       {
