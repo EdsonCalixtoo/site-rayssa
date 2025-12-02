@@ -193,20 +193,6 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
       setCalculatingShipping(false);
     }
   };
-      const defaultCarrier: ShippingCarrier = {
-        id: 0,
-        name: 'Frete Padrão',
-        code: 'standard',
-        price: 29.90,
-        deadline: 7,
-      };
-      setCarriers([defaultCarrier]);
-      setSelectedCarrier(defaultCarrier);
-      setShippingCost(29.90);
-    } finally {
-      setCalculatingShipping(false);
-    }
-  };
 
   const handleZipCodeChange = async (zipCode: string) => {
     setFormData({ ...formData, zip_code: zipCode });
