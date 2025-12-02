@@ -3,18 +3,17 @@ import { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import ShippingCalculator from './ShippingCalculator';
+
+import { ShippingQuote } from '../lib/melhorenvio';
 
 type ModernCheckoutProps = {
   onClose: () => void;
   onSuccess: () => void;
 };
 
-interface ShippingCarrier {
-  id: number;
-  name: string;
-  code: string;
-  price: number;
-  deadline: number;
+interface ShippingCarrier extends ShippingQuote {
+  code?: string;
 }
 
 export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutProps) {
@@ -104,75 +103,96 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
 
     try {
       const totalWeight = cart.reduce((sum, item) => {
-        return sum + (item.product.weight * item.quantity);
+        return sum + ((item.product.weight || 0.1) * item.quantity);
       }, 0);
 
       let totalHeight = 0, totalWidth = 0, totalLength = 0;
       cart.forEach((item) => {
-        totalHeight = Math.max(totalHeight, item.product.height);
-        totalWidth = Math.max(totalWidth, item.product.width);
-        totalLength += item.product.length;
+        totalHeight = Math.max(totalHeight, item.product.height || 10);
+        totalWidth = Math.max(totalWidth, item.product.width || 10);
+        totalLength += item.product.length || 10;
       });
 
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      // Validar dimensões mínimas do Melhor Envio
+      const weight = Math.max(0.01, totalWeight);
+      const height = Math.max(2, totalHeight);
+      const width = Math.max(11, totalWidth);
+      const length = Math.max(16, totalLength);
 
-      try {
-        const response = await fetch(
-          `${supabaseUrl}/functions/v1/calculate-shipping`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${anonKey}`,
-            },
-            body: JSON.stringify({
-              zipCode: zipCode.replace(/\D/g, ''),
-              weight: Math.max(300, totalWeight),
-              height: Math.max(2, totalHeight),
-              width: Math.max(11, totalWidth),
-              length: Math.max(16, totalLength),
-            }),
-          }
-        );
+      console.log('Calculando frete com dimensões:', { weight, height, width, length });
 
-        const data = await response.json();
+      // Usar a API do Melhor Envio diretamente
+      const { calculateShipping: calculateMelhorEnvio } = await import('../lib/melhorenvio');
+      
+      const quotes = await calculateMelhorEnvio({
+        to: {
+          zipcode: zipCode.replace(/\D/g, ''),
+          state: formData.state || '',
+          city: formData.city || '',
+          address: formData.address || '',
+          number: formData.number || '',
+          complement: formData.complement,
+        },
+        products: cart.map((item) => ({
+          id: item.product.id,
+          width: Math.max(11, item.product.width || 10),
+          height: Math.max(2, item.product.height || 10),
+          length: Math.max(16, item.product.length || 10),
+          weight: Math.max(0.01, item.product.weight || 0.1),
+          quantity: item.quantity,
+          insurance_value: item.product.price * item.quantity,
+          description: item.product.name,
+        })),
+      });
 
-        if (data.carriers && data.carriers.length > 0) {
-          setCarriers(data.carriers);
-          const cheapest = data.carriers[0];
-          setSelectedCarrier(cheapest);
-          setShippingCost(cheapest.price);
-        } else {
-          // Se nenhuma transportadora disponível, usar valor padrão
-          const defaultCarrier: ShippingCarrier = {
-            id: 0,
-            name: 'Frete Padrão',
-            code: 'standard',
-            price: 29.90,
-            deadline: 7,
-          };
-          setCarriers([defaultCarrier]);
-          setSelectedCarrier(defaultCarrier);
-          setShippingCost(29.90);
-        }
-      } catch (apiError) {
-        console.error('Error fetching from API:', apiError);
-        // Se falhar a API, usar transportadora padrão
+      if (quotes && quotes.length > 0) {
+        const carriers: ShippingCarrier[] = quotes.map((q) => ({
+          ...q,
+          code: q.id,
+        }));
+        
+        setCarriers(carriers);
+        const cheapest = carriers[0];
+        setSelectedCarrier(cheapest);
+        setShippingCost(cheapest.price);
+        
+        console.log('Opções de frete:', carriers);
+      } else {
+        // Fallback se nenhuma opção disponível
         const defaultCarrier: ShippingCarrier = {
-          id: 0,
+          id: 'default',
           name: 'Frete Padrão',
           code: 'standard',
           price: 29.90,
           deadline: 7,
+          insurance_value: 0,
+          includes: [],
+          logo: '',
         };
         setCarriers([defaultCarrier]);
         setSelectedCarrier(defaultCarrier);
         setShippingCost(29.90);
       }
     } catch (error) {
-      console.error('Error calculating shipping:', error);
-      // Fallback: usar frete padrão
+      console.error('Erro ao calcular frete:', error);
+      // Fallback em caso de erro
+      const defaultCarrier: ShippingCarrier = {
+        id: 'default',
+        name: 'Frete Padrão',
+        code: 'standard',
+        price: 29.90,
+        deadline: 7,
+        insurance_value: 0,
+        includes: [],
+        logo: '',
+      };
+      setCarriers([defaultCarrier]);
+      setSelectedCarrier(defaultCarrier);
+      setShippingCost(29.90);
+    } finally {
+      setCalculatingShipping(false);
+    }
+  };
       const defaultCarrier: ShippingCarrier = {
         id: 0,
         name: 'Frete Padrão',
