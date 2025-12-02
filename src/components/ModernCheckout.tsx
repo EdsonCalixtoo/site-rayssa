@@ -95,8 +95,12 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
   }, [isLoggedIn]);
 
   const calculateShipping = async (zipCode: string) => {
-    if (zipCode.replace(/\D/g, '').length !== 8) return;
+    if (zipCode.replace(/\D/g, '').length !== 8) {
+      console.warn('❌ CEP inválido:', zipCode);
+      return;
+    }
 
+    console.log('🔄 Iniciando cálculo de frete para CEP:', zipCode);
     setCalculatingShipping(true);
     setCarriers([]);
     setSelectedCarrier(null);
@@ -119,11 +123,26 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
       const width = Math.max(11, totalWidth);
       const length = Math.max(16, totalLength);
 
-      console.log('Calculando frete com dimensões:', { weight, height, width, length });
+      console.log('📦 Dimensões do pedido:', { weight, height, width, length });
+      console.log('🛒 Itens do carrinho:', cart.map(item => ({
+        name: item.product.name,
+        quantity: item.quantity,
+        weight: item.product.weight,
+        height: item.product.height,
+        width: item.product.width,
+        length: item.product.length,
+      })));
 
       // Usar a API do Melhor Envio diretamente
       const { calculateShipping: calculateMelhorEnvio } = await import('../lib/melhorenvio');
       
+      console.log('📍 Endereço de entrega:', {
+        zipcode: zipCode.replace(/\D/g, ''),
+        state: formData.state,
+        city: formData.city,
+        address: formData.address,
+      });
+
       const quotes = await calculateMelhorEnvio({
         to: {
           zipcode: zipCode.replace(/\D/g, ''),
@@ -145,19 +164,23 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         })),
       });
 
+      console.log('📋 Quotes recebidas:', quotes);
+
       if (quotes && quotes.length > 0) {
         const carriers: ShippingCarrier[] = quotes.map((q) => ({
           ...q,
           code: q.id,
         }));
         
+        console.log('✅ Carriers para exibir:', carriers);
         setCarriers(carriers);
         const cheapest = carriers[0];
         setSelectedCarrier(cheapest);
         setShippingCost(cheapest.price);
         
-        console.log('Opções de frete:', carriers);
+        console.log('✅ Frete mais barato selecionado:', cheapest);
       } else {
+        console.warn('⚠️ Nenhuma opção de frete retornada pela API - usando fallback');
         // Fallback se nenhuma opção disponível
         const defaultCarrier: ShippingCarrier = {
           id: 'default',
@@ -174,7 +197,8 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         setShippingCost(29.90);
       }
     } catch (error) {
-      console.error('Erro ao calcular frete:', error);
+      console.error('❌ Erro ao calcular frete:', error);
+      console.error('📋 Stack completo:', error instanceof Error ? error.stack : '');
       // Fallback em caso de erro
       const defaultCarrier: ShippingCarrier = {
         id: 'default',

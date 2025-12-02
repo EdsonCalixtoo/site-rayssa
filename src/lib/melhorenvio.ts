@@ -59,7 +59,9 @@ const getHeaders = () => ({
  */
 export async function calculateShipping(shippingData: ShippingData): Promise<ShippingQuote[]> {
   try {
-    console.log('Calculando frete para:', shippingData);
+    console.log('🚚 Iniciando cálculo de frete...');
+    console.log('📦 Dados enviados:', JSON.stringify(shippingData, null, 2));
+    console.log('🔑 Token:', TOKEN ? '✓ Configurado' : '✗ Não configurado');
 
     const response = await fetch(`${MELHOR_ENVIO_API}/shipment/calculate`, {
       method: 'POST',
@@ -67,14 +69,22 @@ export async function calculateShipping(shippingData: ShippingData): Promise<Shi
       body: JSON.stringify(shippingData),
     });
 
+    console.log('📡 Response status:', response.status);
+    console.log('📡 Response headers:', response.headers);
+
     if (!response.ok) {
       const error = await response.json();
-      console.error('Erro ao calcular frete:', error);
-      throw new Error(`Erro ao calcular frete: ${error.message}`);
+      console.error('❌ Erro da API:', error);
+      throw new Error(`Erro ao calcular frete: ${error.message || response.statusText}`);
     }
 
     const data = await response.json();
-    console.log('Frete calculado:', data);
+    console.log('✅ Resposta da API:', JSON.stringify(data, null, 2));
+
+    if (!data || data.length === 0) {
+      console.warn('⚠️ API retornou array vazio');
+      return [];
+    }
 
     // Formatar resposta para o padrão esperado
     interface QuoteResponse {
@@ -88,7 +98,7 @@ export async function calculateShipping(shippingData: ShippingData): Promise<Shi
       logo?: string;
     }
     
-    return (data as QuoteResponse[]).map((quote) => ({
+    const quotes = (data as QuoteResponse[]).map((quote) => ({
       id: quote.id,
       name: quote.name,
       price: typeof quote.price === 'string' ? parseFloat(quote.price) : quote.price || 0,
@@ -102,8 +112,12 @@ export async function calculateShipping(shippingData: ShippingData): Promise<Shi
       includes: quote.includes || [],
       logo: quote.logo || '',
     }));
+
+    console.log('✅ Quotes formatadas:', quotes);
+    return quotes;
   } catch (error) {
-    console.error('Erro ao calcular frete:', error);
+    console.error('❌ Erro ao calcular frete:', error);
+    console.error('📋 Stack:', error instanceof Error ? error.stack : '');
     throw error;
   }
 }
