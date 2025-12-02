@@ -78,7 +78,7 @@ Deno.serve(async (req: Request) => {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`,
-        'User-Agent': 'RT-PRATAS/1.0',
+        'User-Agent': 'RT-PRATAS (contato@rtratas.com.br)',
       },
       body: JSON.stringify(body),
     });
