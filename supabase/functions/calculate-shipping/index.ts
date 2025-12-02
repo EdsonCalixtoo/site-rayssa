@@ -1,9 +1,13 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
+const getCorsHeaders = (origin?: string) => {
+  // Permitir CORS para qualquer origem (Edge Functions do Supabase)
+  return {
+    "Access-Control-Allow-Origin": origin || "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, Accept",
+    "Access-Control-Max-Age": "86400",
+  };
 };
 
 interface ShippingRequest {
@@ -28,9 +32,12 @@ interface ShippingRequest {
 }
 
 Deno.serve(async (req: Request) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, {
-      status: 200,
+      status: 204,
       headers: corsHeaders,
     });
   }
@@ -44,7 +51,7 @@ Deno.serve(async (req: Request) => {
     const token = Deno.env.get('MELHOR_ENVIO_TOKEN');
     
     if (!token) {
-      console.error('❌ Token MELHOR_ENVIO_TOKEN não configurado');
+      console.log('❌ Token MELHOR_ENVIO_TOKEN não configurado');
       return new Response(
         JSON.stringify({
           error: 'Token não configurado no servidor',
