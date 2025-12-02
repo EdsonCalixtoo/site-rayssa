@@ -1,11 +1,12 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
-const getCorsHeaders = (origin?: string) => {
+const getCorsHeaders = () => {
   // Permitir CORS para qualquer origem (Edge Functions do Supabase)
   return {
-    "Access-Control-Allow-Origin": origin || "*",
-    "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
-    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, Accept",
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS, GET, HEAD",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey, Accept, Origin",
+    "Access-Control-Expose-Headers": "Content-Type, Authorization",
     "Access-Control-Max-Age": "86400",
   };
 };
@@ -32,8 +33,7 @@ interface ShippingRequest {
 }
 
 Deno.serve(async (req: Request) => {
-  const origin = req.headers.get("origin");
-  const corsHeaders = getCorsHeaders(origin);
+  const corsHeaders = getCorsHeaders();
 
   if (req.method === "OPTIONS") {
     return new Response(null, {

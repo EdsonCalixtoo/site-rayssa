@@ -135,6 +135,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
 
       // Chamar Edge Function do Supabase ao invés da API direta
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       console.log('📍 Endereço de entrega:', {
         zipcode: zipCode.replace(/\D/g, ''),
@@ -170,14 +171,27 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${anonKey}`,
+          'Accept': 'application/json',
         },
         body: JSON.stringify(requestBody),
       });
 
       console.log('📡 Response status:', response.status);
 
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro HTTP:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
+      }
+
       const data = await response.json();
       console.log('📋 Resposta da Edge Function:', data);
+
+      if (data.error || !data.carriers) {
+        console.warn('⚠️ Erro na resposta:', data.error);
+        throw new Error(data.error?.message || 'Erro ao calcular frete');
+      }
 
       if (data.carriers && data.carriers.length > 0) {
         const carriers: ShippingCarrier[] = data.carriers.map((q: any) => ({
@@ -199,21 +213,8 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         
         console.log('✅ Frete mais barato selecionado:', cheapest);
       } else {
-        console.warn('⚠️ Nenhuma opção de frete retornada - usando fallback');
-        // Fallback se nenhuma opção disponível
-        const defaultCarrier: ShippingCarrier = {
-          id: 'default',
-          name: 'Frete Padrão',
-          code: 'standard',
-          price: 29.90,
-          deadline: 7,
-          insurance_value: 0,
-          includes: [],
-          logo: '',
-        };
-        setCarriers([defaultCarrier]);
-        setSelectedCarrier(defaultCarrier);
-        setShippingCost(29.90);
+        console.warn('⚠️ Nenhuma opção de frete retornada');
+        throw new Error('Nenhuma opção de frete disponível');
       }
     } catch (error) {
       console.error('❌ Erro ao calcular frete:', error);
