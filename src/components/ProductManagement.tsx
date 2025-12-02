@@ -17,8 +17,8 @@ export default function ProductManagement() {
     description: '',
     price: '',
     image_url: '',
+    images: [] as string[], // Array de múltiplas imagens
     category: 'feminina',
-    product_type: 'anel',
     stock: '',
     is_featured: false,
     weight: '',
@@ -53,13 +53,21 @@ export default function ProductManagement() {
     setError('');
 
     try {
+      // Usar imagens carregadas ou URL fornecida
+      const imagesToSave = uploadedImages.length > 0 ? uploadedImages : (formData.image_url ? [formData.image_url] : []);
+      
+      if (imagesToSave.length === 0) {
+        setError('Adicione pelo menos uma imagem');
+        return;
+      }
+
       const productData = {
         name: formData.name,
         description: formData.description,
         price: parseFloat(formData.price),
-        image_url: formData.image_url,
+        image_url: imagesToSave[0], // Primeira imagem como principal
+        images: imagesToSave, // Array com todas as imagens
         category: formData.category,
-        product_type: formData.product_type,
         stock: parseInt(formData.stock),
         is_featured: formData.is_featured,
         weight: parseInt(formData.weight) || 0,
@@ -136,13 +144,15 @@ export default function ProductManagement() {
 
   const handleEdit = (product: Product) => {
     setEditingProduct(product);
+    const images = (product as any).images || [product.image_url];
+    setUploadedImages(images);
     setFormData({
       name: product.name,
       description: product.description,
       price: product.price.toString(),
       image_url: product.image_url,
+      images: images,
       category: product.category || 'feminina',
-      product_type: (product as any).product_type || 'anel',
       stock: product.stock.toString(),
       is_featured: product.is_featured,
       weight: product.weight.toString(),
@@ -172,8 +182,8 @@ export default function ProductManagement() {
       description: '',
       price: '',
       image_url: '',
+      images: [],
       category: 'feminina',
-      product_type: 'anel',
       stock: '',
       is_featured: false,
       weight: '',
@@ -191,14 +201,7 @@ export default function ProductManagement() {
     { id: 'linha-luxo', label: 'Linha de Luxo', icon: '💎', color: 'from-yellow-400 to-yellow-500' },
   ];
 
-  const PRODUCT_TYPES = [
-    { id: 'anel', label: 'Anel', icon: '💍' },
-    { id: 'colar', label: 'Colar', icon: '📿' },
-    { id: 'pulseira', label: 'Pulseira', icon: '⌚' },
-    { id: 'brinco', label: 'Brinco', icon: '✨' },
-    { id: 'tornozeleira', label: 'Tornozeleira', icon: '👣' },
-    { id: 'anel-crusador', label: 'Anel Crochet', icon: '💎' },
-  ];
+
 
   const filteredProducts =
     selectedCategory === 'all'
@@ -298,13 +301,6 @@ export default function ProductManagement() {
                     {product.category === 'feminina' && '👑 Feminina'}
                     {product.category === 'masculina' && '⌚ Masculina'}
                     {product.category === 'linha-luxo' && '💎 Luxo'}
-                  </span>
-                  <span className="text-xs font-bold text-purple-600 uppercase tracking-wider bg-purple-100 px-2 py-1 rounded">
-                    {(product as any).product_type === 'anel' && '💍 Anel'}
-                    {(product as any).product_type === 'colar' && '📿 Colar'}
-                    {(product as any).product_type === 'pulseira' && '⌚ Pulseira'}
-                    {(product as any).product_type === 'brinco' && '✨ Brinco'}
-                    {(product as any).product_type === 'tornozeleira' && '👣 Tornozeleira'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between mb-2">
@@ -415,26 +411,7 @@ export default function ProductManagement() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-3">Tipo de Joia</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                  {PRODUCT_TYPES.map((type) => (
-                    <button
-                      key={type.id}
-                      type="button"
-                      onClick={() => setFormData({ ...formData, product_type: type.id })}
-                      className={`p-3 rounded-xl font-semibold text-center transition-all ${
-                        formData.product_type === type.id
-                          ? 'bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg scale-105'
-                          : 'bg-white border-2 border-gray-200 text-gray-700 hover:border-teal-400'
-                      }`}
-                    >
-                      <span className="text-xl block mb-1">{type.icon}</span>
-                      <span className="text-xs">{type.label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
+
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-3">Categoria/Público</label>
