@@ -48,6 +48,10 @@ export type Order = {
   city: string;
   state: string;
   tracking_code: string;
+  melhor_envio_id?: string;
+  shipping_carrier?: string;
+  shipping_deadline?: number;
+  estimated_delivery_date?: string;
   created_at: string;
   updated_at: string;
 };
