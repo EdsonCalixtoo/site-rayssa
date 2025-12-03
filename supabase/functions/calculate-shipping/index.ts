@@ -153,19 +153,31 @@ Deno.serve(async (req: Request) => {
     }
 
     // Formatar resposta
+    console.log('📊 Tipo de resposta:', typeof data, 'Array?', Array.isArray(data));
+    
+    if (Array.isArray(data) && data.length > 0) {
+      console.log('📦 Primeiro item da resposta:', JSON.stringify(data[0], null, 2));
+    }
+
     const carriers = Array.isArray(data) 
-      ? data.map((item: any) => ({
-          id: item.id,
-          name: item.name,
-          code: item.id,
-          price: typeof item.price === 'string' ? parseFloat(item.price) : item.price,
-          deadline: typeof item.deadline === 'string' ? parseInt(item.deadline) : item.deadline,
-          logo: item.logo || '',
-          includes: item.includes || [],
-        }))
+      ? data.map((item: any) => {
+          // Usar custom_price/custom_delivery_time se disponível, senão usar price/deadline
+          const displayPrice = item.custom_price !== undefined ? item.custom_price : item.price;
+          const displayDeadline = item.custom_delivery_time !== undefined ? item.custom_delivery_time : item.deadline;
+          
+          return {
+            id: item.id,
+            name: item.name,
+            code: item.id,
+            price: typeof displayPrice === 'string' ? parseFloat(displayPrice) : displayPrice,
+            deadline: typeof displayDeadline === 'string' ? parseInt(displayDeadline) : displayDeadline,
+            logo: item.logo || '',
+            includes: item.includes || [],
+          };
+        })
       : [];
 
-    console.log('✅ Carriers formatados:', carriers);
+    console.log('✅ Carriers formatados:', JSON.stringify(carriers, null, 2));
 
     return new Response(
       JSON.stringify({
