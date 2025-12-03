@@ -48,20 +48,12 @@ Deno.serve(async (req: Request) => {
     console.log('📦 Recebido pedido de cálculo:', JSON.stringify(body, null, 2));
 
     // Token do Melhor Envio (pegue as variáveis de ambiente)
-    const token = Deno.env.get('MELHOR_ENVIO_TOKEN');
+    let token = Deno.env.get('MELHOR_ENVIO_TOKEN');
     
+    // Se o token não estiver no env, usar hardcoded (temporário para debug)
     if (!token) {
-      console.log('❌ Token MELHOR_ENVIO_TOKEN não configurado');
-      return new Response(
-        JSON.stringify({
-          error: 'Token não configurado no servidor',
-          carriers: [],
-        }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
+      console.warn('⚠️ Token MELHOR_ENVIO_TOKEN não encontrado no env, usando fallback');
+      token = 'B425XUxX89AjuHaFDzWUavTQuykpyEsoDHfbhgFz';
     }
 
     console.log('🔑 Token configurado:', token ? '✓' : '✗');
