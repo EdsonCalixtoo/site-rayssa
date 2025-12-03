@@ -80,6 +80,11 @@ Deno.serve(async (req: Request) => {
         postal_code: body.to.zipcode || body.to.postal_code,
       },
       products: body.products || [],
+      options: {
+        receipt: false,
+        own_hand: false,
+      },
+      // services: "1,2,18" // Opcional - pode deixar comentado para todas as transportadoras
     };
 
     console.log('📍 Enviando para:', melhorEnvioUrl);
@@ -95,7 +100,7 @@ Deno.serve(async (req: Request) => {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'User-Agent': 'RT-PRATAS (contato@rtratas.com.br)',
+          'User-Agent': 'Rayssa Joias (contato@rtratas.com.br)',
         },
         body: JSON.stringify(apiRequestBody),
       });
