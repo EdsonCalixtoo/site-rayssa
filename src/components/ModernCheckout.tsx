@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { calculateShipping as calculateMelhorEnvioShipping } from '../lib/melhorenvio';
 import ShippingCalculator from './ShippingCalculator';
 
 import { ShippingQuote } from '../lib/melhorenvio';
@@ -133,10 +134,6 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         length: item.product.length,
       })));
 
-      // Chamar Edge Function do Supabase ao invés da API direta
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
       console.log('📍 Endereço de entrega:', {
         zipcode: zipCode.replace(/\D/g, ''),
         state: formData.state,
@@ -165,41 +162,18 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         })),
       };
 
-      console.log('📡 Enviando para Edge Function:', requestBody);
+      console.log('📡 Enviando para Melhor Envio:', requestBody);
 
-      const response = await fetch(`${supabaseUrl}/functions/v1/calculate-shipping`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${anonKey}`,
-          'Accept': 'application/json',
-        },
-        body: JSON.stringify(requestBody),
-      });
+      // Chamar API do Melhor Envio diretamente (não via Edge Function)
+      const quotes = await calculateMelhorEnvioShipping(requestBody);
 
-      console.log('📡 Response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Erro HTTP:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
-      }
-
-      const data = await response.json();
-      console.log('📋 Resposta da Edge Function:', data);
-
-      if (data.error || !data.carriers) {
-        console.warn('⚠️ Erro na resposta:', data.error);
-        throw new Error(data.error?.message || 'Erro ao calcular frete');
-      }
-
-      if (data.carriers && data.carriers.length > 0) {
-        const carriers: ShippingCarrier[] = data.carriers.map((q: any) => ({
-          id: q.id || q.code,
+      if (quotes && quotes.length > 0) {
+        const carriers: ShippingCarrier[] = quotes.map((q) => ({
+          id: q.id,
           name: q.name,
-          code: q.code || q.id,
-          price: typeof q.price === 'string' ? parseFloat(q.price) : q.price,
-          deadline: typeof q.deadline === 'string' ? parseInt(q.deadline) : q.deadline,
+          code: q.id,
+          price: q.price,
+          deadline: q.deadline,
           insurance_value: q.insurance_value || 0,
           includes: q.includes || [],
           logo: q.logo || '',
@@ -214,25 +188,13 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         console.log('✅ Frete mais barato selecionado:', cheapest);
       } else {
         console.warn('⚠️ Nenhuma opção de frete retornada');
-        throw new Error('Nenhuma opção de frete disponível');
+        throw new Error('Nenhuma opção de frete disponível para este CEP');
       }
     } catch (error) {
       console.error('❌ Erro ao calcular frete:', error);
       console.error('📋 Stack completo:', error instanceof Error ? error.stack : '');
-      // Fallback em caso de erro
-      const defaultCarrier: ShippingCarrier = {
-        id: 'default',
-        name: 'Frete Padrão',
-        code: 'standard',
-        price: 29.90,
-        deadline: 7,
-        insurance_value: 0,
-        includes: [],
-        logo: '',
-      };
-      setCarriers([defaultCarrier]);
-      setSelectedCarrier(defaultCarrier);
-      setShippingCost(29.90);
+      // Mostrar erro para o usuário
+      alert(`Erro ao calcular frete: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setCalculatingShipping(false);
     }

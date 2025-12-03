@@ -66,22 +66,41 @@ Deno.serve(async (req: Request) => {
 
     console.log('🔑 Token configurado:', token ? '✓' : '✗');
 
-    // Chamar API do Melhor Envio (v3)
+    // Chamar API do Melhor Envio
+    // URL de produção: https://api.melhorenvio.com.br
+    // URL de sandbox: https://sandbox.melhorenvio.com.br
     const melhorEnvioUrl = 'https://api.melhorenvio.com.br/shipment/calculate';
     
     console.log('📍 Enviando para:', melhorEnvioUrl);
     console.log('📦 Dados:', JSON.stringify(body, null, 2));
 
-    const response = await fetch(melhorEnvioUrl, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'User-Agent': 'RT-PRATAS (contato@rtratas.com.br)',
-      },
-      body: JSON.stringify(body),
-    });
+    let response;
+    try {
+      response = await fetch(melhorEnvioUrl, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'User-Agent': 'RT-PRATAS (contato@rtratas.com.br)',
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (fetchError) {
+      console.error('❌ Erro ao fazer fetch:', fetchError);
+      // Se falhar na Edge Function, tentar alternativa
+      return new Response(
+        JSON.stringify({
+          error: `Network error: ${fetchError instanceof Error ? fetchError.message : 'Unknown'}`,
+          carriers: [],
+          message: 'Falha ao conectar com o servidor de fretes. Tente novamente.',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
 
     console.log('📡 Response status:', response.status);
     console.log('📡 Response headers:', JSON.stringify(Object.fromEntries(response.headers), null, 2));

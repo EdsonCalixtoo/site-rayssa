@@ -49,7 +49,7 @@ const getHeaders = () => ({
   'Accept': 'application/json',
   'Content-Type': 'application/json',
   'Authorization': `Bearer ${TOKEN}`,
-  'User-Agent': 'RT-PRATAS/1.0',
+  'User-Agent': 'RT-PRATAS (contato@rtratas.com.br)',
 });
 
 /**
