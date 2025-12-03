@@ -78,33 +78,39 @@ Deno.serve(async (req: Request) => {
         },
         body: JSON.stringify(body),
       });
+      console.log('✅ Request enviado com sucesso');
     } catch (fetchError) {
       console.error('❌ Erro ao fazer fetch:', fetchError);
-      // Tentar URL alternativa
-      console.log('🔄 Tentando URL alternativa...');
-      const alternativeUrl = 'https://sandbox.melhorenvio.com.br/shipment/calculate';
-      try {
-        response = await fetch(alternativeUrl, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`,
-            'User-Agent': 'RT-PRATAS (contato@rtratas.com.br)',
-          },
-          body: JSON.stringify(body),
-        });
-        console.log('✅ URL alternativa respondeu');
-      } catch (altError) {
-        console.error('❌ URL alternativa também falhou:', altError);
+      return new Response(
+        JSON.stringify({
+          error: `Network error: ${fetchError instanceof Error ? fetchError.message : 'Connection failed'}`,
+          carriers: [],
+          message: 'Falha ao conectar com o servidor de fretes.',
+        }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    console.log('📡 Response status:', response.status);
+
+    const data = await response.json();
+    
+    console.log('✅ Resposta da API:', JSON.stringify(data, null, 2));
+
+    if (!response.ok) {
+      console.error('❌ Erro HTTP:', response.status, data);
+      
+      // Se for 401, pode ser que o token está expirado ou inválido
+      if (response.status === 401) {
         return new Response(
           JSON.stringify({
-            error: `Network error: ${fetchError instanceof Error ? fetchError.message : 'Connection failed'}`,
+            error: 'Token inválido ou expirado',
             carriers: [],
-            message: 'Falha ao conectar com o servidor de fretes. Verifique sua conexão.',
-            debug: {
-              error: fetchError instanceof Error ? fetchError.message : String(fetchError),
-            },
+            message: 'Autenticação falhou. Verifique o token do Melhor Envio.',
+            debug: data,
           }),
           {
             status: 200,
@@ -112,17 +118,7 @@ Deno.serve(async (req: Request) => {
           }
         );
       }
-    }
-
-    console.log('📡 Response status:', response.status);
-    console.log('📡 Response headers:', JSON.stringify(Object.fromEntries(response.headers), null, 2));
-
-    const data = await response.json();
-    
-    console.log('✅ Resposta da API:', JSON.stringify(data, null, 2));
-
-    if (!response.ok) {
-      console.error('❌ Erro da API:', data);
+      
       return new Response(
         JSON.stringify({
           error: data,
