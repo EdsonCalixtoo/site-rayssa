@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { calculateShipping as calculateMelhorEnvioShipping } from '../lib/melhorenvio';
 import ShippingCalculator from './ShippingCalculator';
 
 import { ShippingQuote } from '../lib/melhorenvio';
@@ -162,38 +161,56 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
         })),
       };
 
-      console.log('📡 Enviando para Melhor Envio:', requestBody);
+      console.log('📡 Enviando para Edge Function:', requestBody);
 
-      // Chamar API do Melhor Envio diretamente (não via Edge Function)
-      const quotes = await calculateMelhorEnvioShipping(requestBody);
+      // Chamar Edge Function do Supabase
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      
+      const response = await fetch(`${supabaseUrl}/functions/v1/calculate-shipping`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      });
 
-      if (quotes && quotes.length > 0) {
-        const carriers: ShippingCarrier[] = quotes.map((q) => ({
-          id: q.id,
-          name: q.name,
-          code: q.id,
-          price: q.price,
-          deadline: q.deadline,
-          insurance_value: q.insurance_value || 0,
-          includes: q.includes || [],
-          logo: q.logo || '',
-        }));
-        
-        console.log('✅ Carriers para exibir:', carriers);
-        setCarriers(carriers);
-        const cheapest = carriers[0];
-        setSelectedCarrier(cheapest);
-        setShippingCost(cheapest.price);
-        
-        console.log('✅ Frete mais barato selecionado:', cheapest);
-      } else {
-        console.warn('⚠️ Nenhuma opção de frete retornada');
+      console.log('📡 Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Erro HTTP:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('📋 Resposta da Edge Function:', data);
+
+      if (data.error || !data.carriers || data.carriers.length === 0) {
+        console.warn('⚠️ Nenhuma opção de frete:', data.error || 'Array vazio');
         throw new Error('Nenhuma opção de frete disponível para este CEP');
       }
+
+      const carriers: ShippingCarrier[] = data.carriers.map((q: any) => ({
+        id: q.id || q.code,
+        name: q.name,
+        code: q.code || q.id,
+        price: typeof q.price === 'string' ? parseFloat(q.price) : q.price,
+        deadline: typeof q.deadline === 'string' ? parseInt(q.deadline) : q.deadline,
+        insurance_value: q.insurance_value || 0,
+        includes: q.includes || [],
+        logo: q.logo || '',
+      }));
+      
+      console.log('✅ Carriers para exibir:', carriers);
+      setCarriers(carriers);
+      const cheapest = carriers[0];
+      setSelectedCarrier(cheapest);
+      setShippingCost(cheapest.price);
+      
+      console.log('✅ Frete mais barato selecionado:', cheapest);
     } catch (error) {
       console.error('❌ Erro ao calcular frete:', error);
       console.error('📋 Stack completo:', error instanceof Error ? error.stack : '');
-      // Mostrar erro para o usuário
       alert(`Erro ao calcular frete: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setCalculatingShipping(false);
