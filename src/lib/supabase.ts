@@ -3,7 +3,34 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Criar cliente Supabase com localStorage seguro
+const createSupabaseClient = () => {
+  // Se localStorage não está disponível (SSR/build), use memory storage
+  if (typeof localStorage === 'undefined') {
+    console.warn('⚠️ localStorage não disponível, usando memory storage para Supabase');
+    // Fallback para um storage em memória simples
+    const memoryStorage: Record<string, string> = {};
+    return createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: {
+          getItem: (key: string) => Promise.resolve(memoryStorage[key] || null),
+          setItem: (key: string, value: string) => {
+            memoryStorage[key] = value;
+            return Promise.resolve();
+          },
+          removeItem: (key: string) => {
+            delete memoryStorage[key];
+            return Promise.resolve();
+          },
+        },
+      },
+    });
+  }
+
+  return createClient(supabaseUrl, supabaseAnonKey);
+};
+
+export const supabase = createSupabaseClient();
 
 export type Product = {
   id: string;
