@@ -1,5 +1,16 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
+interface DenoEnv {
+  get(key: string): string | undefined;
+}
+
+interface DenoNamespace {
+  env: DenoEnv;
+  serve: (handler: (req: Request) => Promise<Response>) => void;
+}
+
+declare const Deno: DenoNamespace;
+
 const getCorsHeaders = () => {
   // Permitir CORS para qualquer origem (Edge Functions do Supabase)
   return {
