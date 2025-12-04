@@ -51,19 +51,47 @@ Deno.serve(async (req: Request) => {
     
     console.log('📦 Recebido pedido de cálculo:', JSON.stringify(body, null, 2));
 
-    // Token do Melhor Envio - usar token Bearer antigo que funciona
+    // Validar dados obrigatórios
+    if (!body.to?.zipcode && !body.to?.postal_code) {
+      console.error('❌ CEP de destino não informado');
+      return new Response(
+        JSON.stringify({
+          error: 'CEP de destino é obrigatório',
+          carriers: [],
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    if (!body.products || body.products.length === 0) {
+      console.error('❌ Nenhum produto informado');
+      return new Response(
+        JSON.stringify({
+          error: 'Produtos são obrigatórios',
+          carriers: [],
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    // Token do Melhor Envio - usar Bearer token válido
     let token = Deno.env.get('MELHOR_ENVIO_TOKEN');
     
     if (!token) {
       console.warn('⚠️ Token MELHOR_ENVIO_TOKEN não encontrado no env, usando fallback');
-      // Usar token Bearer simples (não JWT) que é aceito pela API
-      token = 'laxJegcZXKYGhu763xs7gQqz5XDpzTincKAUupuF';
-      console.log('✅ Usando token Bearer de fallback');
+      // JWT token com scope shipping-calculate
+      token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NTYiLCJqdGkiOiI2ZmI4ZjE4ZjFjNjA0YThhODdiYTZjNmYyNDNiNmJlNjQ5ZmM2MDc2YzM2MDQ2NjhhM2NkN2YzNDY5ZDJjOTg5OTJmYjQzODZjYmU1OWMzYSIsImlhdCI6MTc2NDgwODA5Ny40MzU1NjgsIm5iZiI6MTc2NDgwODA5Ny40MzU1NzEsImV4cCI6MTc5NjM0NDA5Ny40MjczNDEsInN1YiI6ImEwN2ZlZGZiLWEyN2QtNDI2OC05YmU5LTQ5ZDc2YzA0YzBiMCIsInNjb3BlcyI6WyJzaGlwcGluZy1jYWxjdWxhdGUiXX0.B-Vj2EXZCafevr3E8eM9C-2SFmjF9buWLZDuoz5bGzPpsgqYKxdXfzut39tkLdj3lLeWxi0B00ULcyDnp-yurAepr1_XjIM8kYQnvav6dfZEl_De6RQdmYWf0AEsTUmh-97zTpGygTK35qelw3vSeyzEn-GOk3eh9jGQsZ9mNG-SvmpaQRyM4UcPaTfXhYwhzlVYoS6ThufhYTAIRyPu3DnNrmyleF6ZTb1zbpX8nKHDCe1Dto2ooO1G-eAF_ErQs0QKkepqawv_GOIaQsSQbJb0Ho5_DI8tvnBJaS-2sd8SeAhig_MIoLH3PdKBHbEkiXbzkZnTsESqJo-c421igIkQ2Slq14wMxfYfaJiKLb94MkFNz5smLYw7jkpurZPVgvqIkqLsTZWml1sR9n9ndYq7Gw5Q1KvXS3xTu5CrIvnzqCaUFeUnSkA3VjbGISPFwUswssAhEpm-q5niNOCmFMvsXrtsdHMQeYlxYY6fkYnPKHz9c67ZZAcK71jEu09oNyz2xHTVVvQ0zJM4ukoEMlF1TzfouDgS3E_BjwTyHsI52FhTEhfwiZwsw4kZDnE3oQ7qurPjUXLIsCNuk7wLPDeE7Snu-EhOrLXn8XeJB3tQqqJ2BhDuPMx8VgG7zbii-wmEO2lluUaDWDLxisbyvXIF9eDetOLduBzcKVwZo0w';
+      console.log('✅ Usando JWT token de fallback');
     }
 
     console.log('🔑 Token configurado:', token ? '✓' : '✗');
     console.log('🔑 Primeiros 30 chars:', token.substring(0, 30) + '...');
-    console.log('📊 Tipo de token:', token.startsWith('eyJ') ? 'JWT (não recomendado)' : 'Bearer simples');
 
     // Chamar API do Melhor Envio
     // URL de produção: https://api.melhorenvio.com.br/api/v2/me/shipment/calculate
@@ -72,9 +100,12 @@ Deno.serve(async (req: Request) => {
     
     // Transformar request body para o formato correto da API Melhor Envio
     // A API espera: from.postal_code, to.postal_code, products[]
+    // CEP de origem padrão (RT-PRATAS) - pode ser configurado via env depois
+    const originZipCode = Deno.env.get('MELHOR_ENVIO_ORIGIN_ZIP') || "96020360";
+    
     const apiRequestBody = {
       from: {
-        postal_code: "96020360" // CEP padrão da origem - pode ser configurado depois
+        postal_code: originZipCode
       },
       to: {
         postal_code: body.to.zipcode || body.to.postal_code,
@@ -197,7 +228,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const carriers = Array.isArray(data) 
-      ? data.map((item: any) => {
+      ? data.map((item: Record<string, unknown>) => {
           // Usar custom_price/custom_delivery_time se disponível, senão usar price/deadline
           const displayPrice = item.custom_price !== undefined ? item.custom_price : item.price;
           const displayDeadline = item.custom_delivery_time !== undefined ? item.custom_delivery_time : item.deadline;
@@ -206,8 +237,8 @@ Deno.serve(async (req: Request) => {
             id: item.id,
             name: item.name,
             code: item.id,
-            price: typeof displayPrice === 'string' ? parseFloat(displayPrice) : displayPrice,
-            deadline: typeof displayDeadline === 'string' ? parseInt(displayDeadline) : displayDeadline,
+            price: typeof displayPrice === 'string' ? parseFloat(displayPrice as string) : displayPrice,
+            deadline: typeof displayDeadline === 'string' ? parseInt(displayDeadline as string) : displayDeadline,
             logo: item.logo || '',
             includes: item.includes || [],
           };
