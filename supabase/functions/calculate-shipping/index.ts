@@ -105,9 +105,9 @@ Deno.serve(async (req: Request) => {
     console.log('🔑 Primeiros 30 chars:', token.substring(0, 30) + '...');
 
     // Chamar API do Melhor Envio
+    // URL de sandbox (para testes): https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate
     // URL de produção: https://api.melhorenvio.com.br/api/v2/me/shipment/calculate
-    // URL de sandbox: https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate
-    const melhorEnvioUrl = 'https://api.melhorenvio.com.br/api/v2/me/shipment/calculate';
+    const melhorEnvioUrl = 'https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate';
     
     // Transformar request body para o formato correto da API Melhor Envio
     // A API espera: from.postal_code, to.postal_code, products[]
