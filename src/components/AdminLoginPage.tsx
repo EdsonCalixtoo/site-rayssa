@@ -23,7 +23,9 @@ export default function AdminLogin({ onSuccess }: AdminLoginProps) {
       // Validar credenciais localmente
       if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
         // Salvar token no localStorage
-        localStorage.setItem('adminToken', 'authenticated');
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('adminToken', 'authenticated');
+        }
         onSuccess();
       } else {
         setError('Email ou senha inválidos');

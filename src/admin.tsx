@@ -11,9 +11,11 @@ function AdminApp() {
 
   useEffect(() => {
     // Verificar se já está autenticado
-    const token = localStorage.getItem('adminToken');
-    if (token) {
-      setIsAuthenticated(true);
+    if (typeof localStorage !== 'undefined') {
+      const token = localStorage.getItem('adminToken');
+      if (token) {
+        setIsAuthenticated(true);
+      }
     }
   }, []);
 
@@ -22,7 +24,9 @@ function AdminApp() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('adminToken');
+    }
     setIsAuthenticated(false);
   };
 

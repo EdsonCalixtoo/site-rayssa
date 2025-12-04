@@ -127,7 +127,9 @@ export default function AdminDashboard() {
       : orders.filter((order) => order.status === filter);
 
   const handleLogout = () => {
-    localStorage.removeItem('adminToken');
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('adminToken');
+    }
     window.location.reload();
   };
 
