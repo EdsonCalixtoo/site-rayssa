@@ -91,15 +91,16 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Token do Melhor Envio - ler apenas do Deno.env
-    const token = Deno.env.get('MELHOR_ENVIO_TOKEN');
+    // ⚠️ IMPORTANTE: Usando token de teste para agora
+    // Em produção, deve-se buscar o token do banco de dados (tabela melhor_envio_tokens)
+    const token = Deno.env.get('MELHOR_ENVIO_TEST_TOKEN');
     
     if (!token) {
-      console.error('❌ ERRO: Token MELHOR_ENVIO_TOKEN não configurado');
+      console.error('❌ ERRO: Token de teste não configurado');
       return new Response(
         JSON.stringify({
-          error: 'Token do Melhor Envio não está configurado nas variáveis de ambiente',
-          message: 'Configure MELHOR_ENVIO_TOKEN no Supabase Project Settings → Environment Variables',
+          error: 'Token do Melhor Envio não está configurado',
+          message: 'Configure MELHOR_ENVIO_TEST_TOKEN no Supabase Project Settings → Environment Variables',
           carriers: [],
         }),
         {
@@ -109,14 +110,8 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    console.log('🔑 Token MELHOR_ENVIO_TOKEN configurado: ✓');
-    console.log('🔑 Primeiros 30 chars:', token.substring(0, 30) + '...');
+    console.log('🔑 Token configurado: ✓');
 
-    // Chamar API do Melhor Envio
-    // URL de sandbox (para testes): https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate
-    // URL de produção: https://api.melhorenvio.com.br/api/v2/me/shipment/calculate
-    const melhorEnvioUrl = 'https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate';
-    
     // Transformar request body para o formato correto da API Melhor Envio
     // A API espera: from.postal_code, to.postal_code, products[]
     // CEP de origem padrão (RT-PRATAS) - pode ser configurado via env depois
@@ -137,30 +132,25 @@ Deno.serve(async (req: Request) => {
       // services: "1,2,18" // Opcional - pode deixar comentado para todas as transportadoras
     };
 
-    console.log('📍 Enviando para:', melhorEnvioUrl);
-    console.log('📦 Payload transformado:', JSON.stringify(apiRequestBody, null, 2));
+    console.log('📍 Enviando para:', 'API Melhor Envio');
+    console.log('📦 Payload:', JSON.stringify(apiRequestBody, null, 2));
 
     let response;
 
     try {
       console.log('🔄 Enviando requisição para Melhor Envio API...');
-      console.log('📊 Headers que serão enviados:');
-      console.log('   Authorization: Bearer ' + token.substring(0, 50) + '...');
-      console.log('   User-Agent: Rayssa Joias (contato@rtratas.com.br)');
-      console.log('   Content-Type: application/json');
-      console.log('   Accept: application/json');
       
-      response = await fetch(melhorEnvioUrl, {
+      response = await fetch('https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate', {
         method: 'POST',
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'User-Agent': 'Rayssa Joias (contato@rtratas.com.br)',
+          'User-Agent': 'Rayssa Joias (juninho.caxto@gmail.com)',
         },
         body: JSON.stringify(apiRequestBody),
       });
-      console.log('✅ Request enviado com sucesso - Status:', response.status);
+      console.log('✅ Request enviado - Status:', response.status);
     } catch (fetchError) {
       console.error('❌ Erro ao fazer fetch:', fetchError);
       return new Response(
