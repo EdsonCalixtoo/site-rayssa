@@ -136,6 +136,12 @@ Deno.serve(async (req: Request) => {
 
     try {
       console.log('🔄 Enviando requisição para Melhor Envio API...');
+      console.log('📊 Headers que serão enviados:');
+      console.log('   Authorization: Bearer ' + token.substring(0, 50) + '...');
+      console.log('   User-Agent: Rayssa Joias (contato@rtratas.com.br)');
+      console.log('   Content-Type: application/json');
+      console.log('   Accept: application/json');
+      
       response = await fetch(melhorEnvioUrl, {
         method: 'POST',
         headers: {
@@ -173,7 +179,9 @@ Deno.serve(async (req: Request) => {
       
       // Se for 401, o token não funciona - usar fallback com preços fixos
       if (response.status === 401) {
-        console.warn('⚠️ Token inválido ou expirado. Usando fallback de preços.');
+        console.warn('⚠️ Token rejeitado com erro 401. Usando fallback de preços.');
+        console.warn('ℹ️ Dica: O token pode ser válido apenas para produção, não para sandbox.');
+        console.warn('ℹ️ Ou a sandbox pode exigir um token de teste diferente.');
         
         // Fallback: retornar transportadoras com preços estimados
         const fallbackCarriers = [
@@ -210,7 +218,7 @@ Deno.serve(async (req: Request) => {
           JSON.stringify({
             success: true,
             carriers: fallbackCarriers,
-            warning: 'Usando preços estimados. Autenticação com Melhor Envio falhou.',
+            warning: 'Token rejeitado (401). Usando preços estimados. Entre em contato com o suporte Melhor Envio.',
           }),
           {
             status: 200,
