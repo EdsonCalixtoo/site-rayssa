@@ -91,17 +91,25 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Token do Melhor Envio - usar Bearer token válido
-    let token = Deno.env.get('MELHOR_ENVIO_TOKEN');
+    // Token do Melhor Envio - ler apenas do Deno.env
+    const token = Deno.env.get('MELHOR_ENVIO_TOKEN');
     
     if (!token) {
-      console.warn('⚠️ Token MELHOR_ENVIO_TOKEN não encontrado no env, usando fallback');
-      // JWT token com scope shipping-calculate
-      token = 'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5NTYiLCJqdGkiOiI2ZmI4ZjE4ZjFjNjA0YThhODdiYTZjNmYyNDNiNmJlNjQ5ZmM2MDc2YzM2MDQ2NjhhM2NkN2YzNDY5ZDJjOTg5OTJmYjQzODZjYmU1OWMzYSIsImlhdCI6MTc2NDgwODA5Ny40MzU1NjgsIm5iZiI6MTc2NDgwODA5Ny40MzU1NzEsImV4cCI6MTc5NjM0NDA5Ny40MjczNDEsInN1YiI6ImEwN2ZlZGZiLWEyN2QtNDI2OC05YmU5LTQ5ZDc2YzA0YzBiMCIsInNjb3BlcyI6WyJzaGlwcGluZy1jYWxjdWxhdGUiXX0.B-Vj2EXZCafevr3E8eM9C-2SFmjF9buWLZDuoz5bGzPpsgqYKxdXfzut39tkLdj3lLeWxi0B00ULcyDnp-yurAepr1_XjIM8kYQnvav6dfZEl_De6RQdmYWf0AEsTUmh-97zTpGygTK35qelw3vSeyzEn-GOk3eh9jGQsZ9mNG-SvmpaQRyM4UcPaTfXhYwhzlVYoS6ThufhYTAIRyPu3DnNrmyleF6ZTb1zbpX8nKHDCe1Dto2ooO1G-eAF_ErQs0QKkepqawv_GOIaQsSQbJb0Ho5_DI8tvnBJaS-2sd8SeAhig_MIoLH3PdKBHbEkiXbzkZnTsESqJo-c421igIkQ2Slq14wMxfYfaJiKLb94MkFNz5smLYw7jkpurZPVgvqIkqLsTZWml1sR9n9ndYq7Gw5Q1KvXS3xTu5CrIvnzqCaUFeUnSkA3VjbGISPFwUswssAhEpm-q5niNOCmFMvsXrtsdHMQeYlxYY6fkYnPKHz9c67ZZAcK71jEu09oNyz2xHTVVvQ0zJM4ukoEMlF1TzfouDgS3E_BjwTyHsI52FhTEhfwiZwsw4kZDnE3oQ7qurPjUXLIsCNuk7wLPDeE7Snu-EhOrLXn8XeJB3tQqqJ2BhDuPMx8VgG7zbii-wmEO2lluUaDWDLxisbyvXIF9eDetOLduBzcKVwZo0w';
-      console.log('✅ Usando JWT token de fallback');
+      console.error('❌ ERRO: Token MELHOR_ENVIO_TOKEN não configurado');
+      return new Response(
+        JSON.stringify({
+          error: 'Token do Melhor Envio não está configurado nas variáveis de ambiente',
+          message: 'Configure MELHOR_ENVIO_TOKEN no Supabase Project Settings → Environment Variables',
+          carriers: [],
+        }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
     }
 
-    console.log('🔑 Token configurado:', token ? '✓' : '✗');
+    console.log('🔑 Token MELHOR_ENVIO_TOKEN configurado: ✓');
     console.log('🔑 Primeiros 30 chars:', token.substring(0, 30) + '...');
 
     // Chamar API do Melhor Envio
@@ -177,60 +185,11 @@ Deno.serve(async (req: Request) => {
     if (!response.ok) {
       console.error('❌ Erro HTTP:', response.status, data);
       
-      // Se for 401, o token não funciona - usar fallback com preços fixos
-      if (response.status === 401) {
-        console.warn('⚠️ Token rejeitado com erro 401. Usando fallback de preços.');
-        console.warn('ℹ️ Dica: O token pode ser válido apenas para produção, não para sandbox.');
-        console.warn('ℹ️ Ou a sandbox pode exigir um token de teste diferente.');
-        
-        // Fallback: retornar transportadoras com preços estimados
-        const fallbackCarriers = [
-          {
-            id: 1,
-            name: 'PAC',
-            code: '1',
-            price: 29.90,
-            deadline: 15,
-            logo: 'https://www.melhorenvio.com.br/static/images/logos/pac.png',
-            includes: [],
-          },
-          {
-            id: 2,
-            name: 'SEDEX',
-            code: '2',
-            price: 49.90,
-            deadline: 3,
-            logo: 'https://www.melhorenvio.com.br/static/images/logos/sedex.png',
-            includes: [],
-          },
-          {
-            id: 18,
-            name: 'JadLog',
-            code: '18',
-            price: 35.50,
-            deadline: 10,
-            logo: 'https://www.melhorenvio.com.br/static/images/logos/jadlog.png',
-            includes: [],
-          },
-        ];
-        
-        return new Response(
-          JSON.stringify({
-            success: true,
-            carriers: fallbackCarriers,
-            warning: 'Token rejeitado (401). Usando preços estimados. Entre em contato com o suporte Melhor Envio.',
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
       return new Response(
         JSON.stringify({
-          error: data,
+          error: data.message || data.error || 'Erro ao calcular frete',
           carriers: [],
+          status: response.status,
         }),
         {
           status: 200,
