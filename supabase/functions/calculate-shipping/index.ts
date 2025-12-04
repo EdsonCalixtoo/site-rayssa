@@ -57,7 +57,7 @@ Deno.serve(async (req: Request) => {
     if (!token) {
       console.warn('⚠️ Token MELHOR_ENVIO_TOKEN não encontrado no env, usando fallback');
       // Usar token Bearer simples (não JWT) que é aceito pela API
-      token = 'B425XUxX89AjuHaFDzWUavTQuykpyEsoDHfbhgFz';
+      token = 'laxJegcZXKYGhu763xs7gQqz5XDpzTincKAUupuF';
       console.log('✅ Usando token Bearer de fallback');
     }
 
