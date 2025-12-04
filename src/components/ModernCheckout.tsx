@@ -165,11 +165,13 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
 
       // Chamar Edge Function do Supabase
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
       const response = await fetch(`${supabaseUrl}/functions/v1/calculate-shipping`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseKey}`,
         },
         body: JSON.stringify(requestBody),
       });
