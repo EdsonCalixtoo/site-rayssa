@@ -187,21 +187,26 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
       const data = await response.json();
       console.log('📋 Resposta da Edge Function:', data);
 
-      if (data.error || !data.carriers || data.carriers.length === 0) {
-        console.warn('⚠️ Nenhuma opção de frete:', data.error || 'Array vazio');
+      // A resposta é um array de transportadoras
+      const carriersData = Array.isArray(data) ? data : (data.carriers || []);
+      
+      if (carriersData.length === 0) {
+        console.warn('⚠️ Nenhuma opção de frete disponível');
         throw new Error('Nenhuma opção de frete disponível para este CEP');
       }
 
-      const carriers: ShippingCarrier[] = data.carriers.map((q: any) => ({
-        id: q.id || q.code,
-        name: q.name,
-        code: q.code || q.id,
-        price: typeof q.price === 'string' ? parseFloat(q.price) : q.price,
-        deadline: typeof q.deadline === 'string' ? parseInt(q.deadline) : q.deadline,
-        insurance_value: q.insurance_value || 0,
-        includes: q.includes || [],
-        logo: q.logo || '',
-      }));
+      const carriers: ShippingCarrier[] = carriersData
+        .filter((q: any) => q.price && q.price.total) // Filtra carriers com preço válido
+        .map((q: any) => ({
+          id: q.id || q.code,
+          name: q.name,
+          code: q.code || q.id,
+          price: q.price.total, // Pega o total do objeto price
+          deadline: q.deadline,
+          insurance_value: q.insurance_value || 0,
+          includes: q.includes || [],
+          logo: q.logo || '',
+        }));
       
       console.log('✅ Carriers para exibir:', carriers);
       setCarriers(carriers);
