@@ -500,7 +500,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                                 <p className="text-xs text-gray-600">Prazo: {carrier.deadline} dia(s)</p>
                               </div>
                               <p className="font-bold text-blue-600">
-                                R$ {carrier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                                R$ {carrier.price?.total?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'}
                               </p>
                             </div>
                           </button>
@@ -520,7 +520,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                           </div>
                         </div>
                         <span className="text-xl font-bold text-green-600">
-                          R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          R$ {shippingCost?.toLocaleString?.('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'}
                         </span>
                       </div>
                     </div>
