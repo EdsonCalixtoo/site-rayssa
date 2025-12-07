@@ -187,26 +187,21 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
       const data = await response.json();
       console.log('📋 Resposta da Edge Function:', data);
 
-      // A resposta é um array de transportadoras
-      const carriersData = Array.isArray(data) ? data : (data.carriers || []);
-      
-      if (carriersData.length === 0) {
-        console.warn('⚠️ Nenhuma opção de frete disponível');
+      if (data.error || !data.carriers || data.carriers.length === 0) {
+        console.warn('⚠️ Nenhuma opção de frete:', data.error || 'Array vazio');
         throw new Error('Nenhuma opção de frete disponível para este CEP');
       }
 
-      const carriers: ShippingCarrier[] = carriersData
-        .filter((q: any) => q.price && q.price.total) // Filtra carriers com preço válido
-        .map((q: any) => ({
-          id: q.id || q.code,
-          name: q.name,
-          code: q.code || q.id,
-          price: q.price.total, // Pega o total do objeto price
-          deadline: q.deadline,
-          insurance_value: q.insurance_value || 0,
-          includes: q.includes || [],
-          logo: q.logo || '',
-        }));
+      const carriers: ShippingCarrier[] = data.carriers.map((q: any) => ({
+        id: q.id || q.code,
+        name: q.name,
+        code: q.code || q.id,
+        price: typeof q.price === 'string' ? parseFloat(q.price) : q.price,
+        deadline: typeof q.deadline === 'string' ? parseInt(q.deadline) : q.deadline,
+        insurance_value: q.insurance_value || 0,
+        includes: q.includes || [],
+        logo: q.logo || '',
+      }));
       
       console.log('✅ Carriers para exibir:', carriers);
       setCarriers(carriers);
@@ -485,40 +480,31 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                     <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
                       <h4 className="font-bold text-blue-900 mb-3">Escolha a Transportadora</h4>
                       <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {carriers.map((carrier) => {
-                          const price = Number(carrier.price?.total || 0).toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          });
-
-                          const companyName = carrier.name || 'Transportadora';
-
-                          return (
-                            <button
-                              key={carrier.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedCarrier(carrier);
-                                setShippingCost(Number(carrier.price?.total || 0));
-                              }}
-                              className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                                selectedCarrier?.id === carrier.id
-                                  ? 'border-blue-600 bg-blue-100'
-                                  : 'border-blue-200 bg-white hover:border-blue-400'
-                              }`}
-                            >
-                              <div className="flex justify-between items-center">
-                                <div>
-                                  <p className="font-semibold text-gray-900">{companyName}</p>
-                                  <p className="text-xs text-gray-600">Prazo: {carrier.deadline} dia(s)</p>
-                                </div>
-                                <p className="font-bold text-blue-600">
-                                  {price}
-                                </p>
+                        {carriers.map((carrier) => (
+                          <button
+                            key={carrier.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedCarrier(carrier);
+                              setShippingCost(carrier.price);
+                            }}
+                            className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                              selectedCarrier?.id === carrier.id
+                                ? 'border-blue-600 bg-blue-100'
+                                : 'border-blue-200 bg-white hover:border-blue-400'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <p className="font-semibold text-gray-900">{carrier.name}</p>
+                                <p className="text-xs text-gray-600">Prazo: {carrier.deadline} dia(s)</p>
                               </div>
-                            </button>
-                          );
-                        })}
+                              <p className="font-bold text-blue-600">
+                                R$ {carrier.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                              </p>
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     </div>
                   )}
@@ -534,10 +520,7 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                           </div>
                         </div>
                         <span className="text-xl font-bold text-green-600">
-                          {Number(shippingCost).toLocaleString('pt-BR', {
-                            style: 'currency',
-                            currency: 'BRL',
-                          })}
+                          R$ {shippingCost.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                         </span>
                       </div>
                     </div>
