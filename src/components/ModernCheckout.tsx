@@ -480,31 +480,40 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                     <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
                       <h4 className="font-bold text-blue-900 mb-3">Escolha a Transportadora</h4>
                       <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {carriers.map((carrier) => (
-                          <button
-                            key={carrier.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedCarrier(carrier);
-                              setShippingCost(carrier.price);
-                            }}
-                            className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
-                              selectedCarrier?.id === carrier.id
-                                ? 'border-blue-600 bg-blue-100'
-                                : 'border-blue-200 bg-white hover:border-blue-400'
-                            }`}
-                          >
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <p className="font-semibold text-gray-900">{carrier.name}</p>
-                                <p className="text-xs text-gray-600">Prazo: {carrier.deadline} dia(s)</p>
+                        {carriers.map((carrier) => {
+                          const price = Number(carrier.price?.total || 0).toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          });
+
+                          const companyName = carrier.name || 'Transportadora';
+
+                          return (
+                            <button
+                              key={carrier.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCarrier(carrier);
+                                setShippingCost(Number(carrier.price?.total || 0));
+                              }}
+                              className={`w-full p-3 rounded-lg border-2 transition-all text-left ${
+                                selectedCarrier?.id === carrier.id
+                                  ? 'border-blue-600 bg-blue-100'
+                                  : 'border-blue-200 bg-white hover:border-blue-400'
+                              }`}
+                            >
+                              <div className="flex justify-between items-center">
+                                <div>
+                                  <p className="font-semibold text-gray-900">{companyName}</p>
+                                  <p className="text-xs text-gray-600">Prazo: {carrier.deadline} dia(s)</p>
+                                </div>
+                                <p className="font-bold text-blue-600">
+                                  {price}
+                                </p>
                               </div>
-                              <p className="font-bold text-blue-600">
-                                R$ {carrier.price?.total?.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -520,7 +529,10 @@ export default function ModernCheckout({ onClose, onSuccess }: ModernCheckoutPro
                           </div>
                         </div>
                         <span className="text-xl font-bold text-green-600">
-                          R$ {shippingCost?.toLocaleString?.('pt-BR', { minimumFractionDigits: 2 }) ?? '0,00'}
+                          {Number(shippingCost).toLocaleString('pt-BR', {
+                            style: 'currency',
+                            currency: 'BRL',
+                          })}
                         </span>
                       </div>
                     </div>
