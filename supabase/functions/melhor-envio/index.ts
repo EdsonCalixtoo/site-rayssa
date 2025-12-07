@@ -29,14 +29,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     if (!token) {
       return new Response(
         JSON.stringify({
-          error:
-            "Variável MELHOR_ENVIO_TEST_TOKEN não configurada no Supabase.",
+          error: "Variável MELHOR_ENVIO_TEST_TOKEN não configurada no Supabase.",
         }),
         { status: 500, headers: corsHeaders }
       );
     }
 
     const body = await req.json();
+
+    // 🔥 Correção: valores mínimos exigidos pelo Melhor Envio (e necessários pra Jadlog)
+    const medidas = {
+      width: Math.max(Number(body.largura) || 0, 11),      // mínimo 11 cm
+      height: Math.max(Number(body.altura) || 0, 2),       // mínimo 2 cm
+      length: Math.max(Number(body.comprimento) || 0, 16), // mínimo 16 cm
+      weight: Math.max(Number(body.peso) || 0, 0.3),       // mínimo 300g
+    };
 
     const apiRequestBody = {
       from: {
@@ -48,10 +55,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       products: [
         {
           id: "1",
-          width: body.largura,
-          height: body.altura,
-          length: body.comprimento,
-          weight: body.peso,
+          ...medidas,
           insurance_value: 0,
           quantity: 1,
         },
@@ -85,7 +89,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       id: item.id,
       name: item.name || "Frete",
       code: item.code || 0,
-      price: item.price || 0,
+      price: item.price,
       deadline: item.delivery_time || item.deadline || 0,
       logo: item.company?.picture || "",
       includes: [],
