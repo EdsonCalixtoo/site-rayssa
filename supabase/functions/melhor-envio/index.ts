@@ -1,6 +1,6 @@
 // Edge Function Melhor Envio (Sandbox)
 
-// Import do runtime do Supabase para Deno
+// Import runtime
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 declare const Deno: {
@@ -58,6 +58,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
       ],
     };
 
+    // Chamada à API Melhor Envio
     const response = await fetch(
       "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate",
       {
@@ -74,12 +75,34 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const result = await response.json();
 
-    return new Response(JSON.stringify(result), {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "application/json",
-      },
-    });
+    // 🔥 Filtrar apenas fretes com preço válido
+    const fretesValidos = result.filter(
+      (item: any) => item?.price && item.price > 0
+    );
+
+    // 🔥 Converter para formato esperado pelo frontend
+    const carriers = fretesValidos.map((item: any) => ({
+      id: item.id,
+      name: item.name || "Frete",
+      code: item.code || 0,
+      price: item.price || 0,
+      deadline: item.delivery_time || item.deadline || 0,
+      logo: item.company?.picture || "",
+      includes: [],
+    }));
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        carriers,
+      }),
+      {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/json",
+        },
+      }
+    );
   } catch (err) {
     return new Response(
       JSON.stringify({
