@@ -47,7 +47,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     const apiRequestBody = {
       from: {
-        postal_code: originZip || "01001-000",
+        postal_code: originZip || "13088-130",
       },
       to: {
         postal_code: body.cep,
