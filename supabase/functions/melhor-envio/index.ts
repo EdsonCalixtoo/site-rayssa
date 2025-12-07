@@ -64,7 +64,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Chamada à API Melhor Envio
     const response = await fetch(
-      "https://sandbox.melhorenvio.com.br/api/v2/me/shipment/calculate",
+      "https://melhorenvio.com.br/api/v2/me/shipment/calculate",
       {
         method: "POST",
         headers: {
